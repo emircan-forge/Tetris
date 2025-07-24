@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tetris Oyunu</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-wrapper">
+        <div class="character left-char">
+            <img src="images/left.png" alt="Left character">
+        </div>
+        <div class="content">
+            <div id="name-form" class="name-form">
+        <h1>Tetris</h1>
+        <p class="creator-text">Created for nephews <span class="pixel-heart">♥</span> github.com/emircan-forge</p>
+        <div class="input-group">
+            <label for="player1">Oyuncu 1 İsmi:</label>
+            <input type="text" id="player1" maxlength="10" required>
+        </div>
+        <div class="input-group">
+            <label for="player2">Oyuncu 2 İsmi:</label>
+            <input type="text" id="player2" maxlength="10" required>
+        </div>
+        <button onclick="startGame()">Oyunu Başlat</button>
+    </div>
+
+    <div class="game-container" style="display: none;">
+        <!-- Oyuncu 1 -->
+        <div class="player-container">
+            <h2>Oyuncu 1</h2>
+            <div class="game-info">
+                <div class="score">Skor: <span id="score1">0</span></div>
+                <div class="level">Seviye: <span id="level1">1</span></div>
+            </div>
+            <div class="game-layout">
+                <div class="side-panels">
+                    <div class="hold-panel">
+                        <h3>Hold (Q)</h3>
+                        <canvas id="hold1" width="80" height="80"></canvas>
+                    </div>
+                    <div class="next-panel">
+                        <h3>Next</h3>
+                        <canvas id="next1" width="80" height="80"></canvas>
+                    </div>
+                </div>
+                <canvas id="tetris1" width="240" height="440"></canvas>
+            </div>
+            <div class="controls">
+                <p class="control-info">Kontroller: WASD + Q (Hold)</p>
+                <button onclick="rotate1()">Döndür (W)</button>
+                <div class="move-buttons">
+                    <button onclick="moveLeft1()">Sol (A)</button>
+                    <button onclick="moveRight1()">Sağ (D)</button>
+                    <button onclick="moveDown1()">Aşağı (S)</button>
+                </div>
+                <button onclick="hold1()" class="hold-button">Hold (Q)</button>
+            </div>
+        </div>
+
+        <!-- Oyuncu 2 -->
+        <div class="player-container">
+            <h2>Oyuncu 2</h2>
+            <div class="game-info">
+                <div class="score">Skor: <span id="score2">0</span></div>
+                <div class="level">Seviye: <span id="level2">1</span></div>
+            </div>
+            <div class="game-layout">
+                <div class="side-panels">
+                    <div class="hold-panel">
+                        <h3>Hold (Space)</h3>
+                        <canvas id="hold2" width="80" height="80"></canvas>
+                    </div>
+                    <div class="next-panel">
+                        <h3>Next</h3>
+                        <canvas id="next2" width="80" height="80"></canvas>
+                    </div>
+                </div>
+                <canvas id="tetris2" width="240" height="440"></canvas>
+            </div>
+            <div class="controls">
+                <p class="control-info">Kontroller: Yön Tuşları + Space (Hold)</p>
+                <button onclick="rotate2()">Döndür (↑)</button>
+                <div class="move-buttons">
+                    <button onclick="moveLeft2()">Sol (←)</button>
+                    <button onclick="moveRight2()">Sağ (→)</button>
+                    <button onclick="moveDown2()">Aşağı (↓)</button>
+                </div>
+                <button onclick="hold2()" class="hold-button">Hold (Space)</button>
+            </div>
+        </div>
+            </div>
+            <div class="sound-controls">
+                <h3>Ses Ayarları</h3>
+                <div class="volume-control">
+                    <label for="volume">Ses Seviyesi:</label>
+                    <input type="range" id="volume" min="0" max="100" value="50">
+                    <span id="volumeValue">50%</span>
+                </div>
+                <button id="muteBtn" onclick="toggleMute()">Sesli</button>
+            </div>
+            <button id="restart" style="display: none;" onclick="restartGame()">Yeniden Başlat</button>
+        </div>
+        <div class="character right-char">
+            <img src="images/right.png" alt="Right character">
+        </div>
+    </div>
+    <script src="tetris.js"></script>
+</body>
+</html>
