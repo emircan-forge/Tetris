@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tetris Oyunu</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Sound effects -->
+    <audio id="rotateSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+X7zn0nBVZhYWOGT1NgWFlDT1dZYF1lYXZnMGFDV1hkYl9jVWNdZGNeaGNlZW1jXmJeZGJiaGVkWWhkZWZpZGZiY2VjYWZkSV9fTl5eWWNhDEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+X7zn0nBU==" type="audio/wav">
+    </audio>
+    <audio id="lineClearSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRuQEAABXQVZFZm10IBAAAAABAAEAHB0AAHgdAAABAAgAZGF0YcAEAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+X7zn0nBVl6Y2OGT1NgWFlDT1dZYF1lYXZnMGFDV1hkYl9jVWNdZGNeaGNlZW1jXmJeZGJiaGVkWWhkZWZpZGZiY2VjYWZk=" type="audio/wav">
+    </audio>
+    <audio id="landSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+X7zn0nBV==" type="audio/wav">
+    </audio>
+    <audio id="gameOverSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRvQDAABXQVZFZm10IBAAAAABAAEAHB0AAHgdAAABAAgAZGF0YdADAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+X7zn0nBVl6Y2OGT1NgWFlDT1dZYF1lYXZnMGFDV1hkYl9jVWNdZGNeaGNlZW1jXmJeZGJiaGVkWWhkZWZpZGZiY2VjYWZk=" type="audio/wav">
+    </audio>
+    
+    <div class="game-wrapper">
+        <div class="character left-char">
+            <img src="left.png" alt="Left character">
+        </div>
+        <div class="content">
+            <div id="name-form" class="name-form">
+        <h1>Tetris</h1>
+        <p class="creator-text">Created for nephews <span class="pixel-heart">♥</span> github.com/emircan-forge</p>
+        <div class="input-group">
+            <label for="player1">Oyuncu 1 İsmi:</label>
+            <input type="text" id="player1" maxlength="10" required>
+        </div>
+        <div class="input-group">
+            <label for="player2">Oyuncu 2 İsmi:</label>
+            <input type="text" id="player2" maxlength="10" required>
+        </div>
+        <button onclick="startGame()">Oyunu Başlat</button>
+    </div>
+
+    <div class="game-container" style="display: none;">
+        <!-- Oyuncu 1 -->
+        <div class="player-container">
+            <h2>Oyuncu 1</h2>
+            <div class="game-info">
+                <div class="score">Skor: <span id="score1">0</span></div>
+                <div class="level">Seviye: <span id="level1">1</span></div>
+            </div>
+            
+            <div class="side-panels">
+                <div class="panel">
+                    <h3>Bekletilen</h3>
+                    <canvas id="hold1" width="80" height="80"></canvas>
+                </div>
+                <canvas id="tetris1" width="240" height="440"></canvas>
+                <div class="panel">
+                    <h3>Sonraki</h3>
+                    <canvas id="next1" width="80" height="80"></canvas>
+                </div>
+            </div>
+            
+            <div id="message1" class="encouragement-message"></div>
+            
+            <div class="controls">
+                <p class="control-info">Kontroller: WASD + H (Beklet)</p>
+                <button onclick="rotate1()">Döndür (W)</button>
+                <button onclick="hold1()">Beklet (H)</button>
+                <div class="move-buttons">
+                    <button onclick="moveLeft1()">Sol (A)</button>
+                    <button onclick="moveRight1()">Sağ (D)</button>
+                    <button onclick="moveDown1()">Aşağı (S)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Oyuncu 2 -->
+        <div class="player-container">
+            <h2>Oyuncu 2</h2>
+            <div class="game-info">
+                <div class="score">Skor: <span id="score2">0</span></div>
+                <div class="level">Seviye: <span id="level2">1</span></div>
+            </div>
+            
+            <div class="side-panels">
+                <div class="panel">
+                    <h3>Bekletilen</h3>
+                    <canvas id="hold2" width="80" height="80"></canvas>
+                </div>
+                <canvas id="tetris2" width="240" height="440"></canvas>
+                <div class="panel">
+                    <h3>Sonraki</h3>
+                    <canvas id="next2" width="80" height="80"></canvas>
+                </div>
+            </div>
+            
+            <div id="message2" class="encouragement-message"></div>
+            
+            <div class="controls">
+                <p class="control-info">Kontroller: Yön Tuşları + Boşluk (Beklet)</p>
+                <button onclick="rotate2()">Döndür (↑)</button>
+                <button onclick="hold2()">Beklet (Boşluk)</button>
+                <div class="move-buttons">
+                    <button onclick="moveLeft2()">Sol (←)</button>
+                    <button onclick="moveRight2()">Sağ (→)</button>
+                    <button onclick="moveDown2()">Aşağı (↓)</button>
+                </div>
+            </div>
+        </div>
+            </div>
+            <button id="restart" style="display: none;" onclick="restartGame()">Yeniden Başlat</button>
+        </div>
+        <div class="character right-char">
+            <img src="right.png" alt="Right character">
+        </div>
+    </div>
+    <script src="tetris.js"></script>
+</body>
+</html>
