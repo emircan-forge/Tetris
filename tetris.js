@@ -8,6 +8,16 @@ const canvas2 = document.getElementById('tetris2');
 const context1 = canvas1.getContext('2d');
 const context2 = canvas2.getContext('2d');
 
+// Hold ve Next piece canvas'ları
+const holdCanvas1 = document.getElementById('hold1');
+const holdCanvas2 = document.getElementById('hold2');
+const nextCanvas1 = document.getElementById('next1');
+const nextCanvas2 = document.getElementById('next2');
+const holdContext1 = holdCanvas1.getContext('2d');
+const holdContext2 = holdCanvas2.getContext('2d');
+const nextContext1 = nextCanvas1.getContext('2d');
+const nextContext2 = nextCanvas2.getContext('2d');
+
 function startGame() {
     // İsimleri al
     player1Name = document.getElementById('player1').value.trim() || 'Oyuncu 1';
@@ -59,7 +69,16 @@ const players = {
             position: {x: 0, y: 0},
             shape: null,
             color: null
-        }
+        },
+        holdPiece: {
+            shape: null,
+            color: null
+        },
+        nextPiece: {
+            shape: null,
+            color: null
+        },
+        canHold: true
     },
     p2: {
         board: Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0)),
@@ -74,19 +93,42 @@ const players = {
             position: {x: 0, y: 0},
             shape: null,
             color: null
-        }
+        },
+        holdPiece: {
+            shape: null,
+            color: null
+        },
+        nextPiece: {
+            shape: null,
+            color: null
+        },
+        canHold: true
     }
 };
 
 function createPiece(player) {
-    const pieceIndex = Math.floor(Math.random() * PIECES.length);
-    player.piece.shape = PIECES[pieceIndex];
-    player.piece.color = COLORS[pieceIndex];
+    // If we have a next piece, use it; otherwise generate a new one
+    if (player.nextPiece.shape) {
+        player.piece.shape = player.nextPiece.shape;
+        player.piece.color = player.nextPiece.color;
+    } else {
+        const pieceIndex = Math.floor(Math.random() * PIECES.length);
+        player.piece.shape = PIECES[pieceIndex];
+        player.piece.color = COLORS[pieceIndex];
+    }
+    
+    // Generate next piece
+    const nextPieceIndex = Math.floor(Math.random() * PIECES.length);
+    player.nextPiece.shape = PIECES[nextPieceIndex];
+    player.nextPiece.color = COLORS[nextPieceIndex];
+    
     player.piece.position.x = Math.floor(BOARD_WIDTH / 2) - Math.floor(player.piece.shape[0].length / 2);
     player.piece.position.y = 0;
+    player.canHold = true; // Reset hold ability
 
     if (checkCollision(player)) {
         player.gameOver = true;
+        playSound('gameOverSound');
     }
 }
 
@@ -108,6 +150,25 @@ function checkCollision(player) {
     return false;
 }
 
+function calculateGhostPosition(player) {
+    let ghostY = player.piece.position.y;
+    
+    // Keep moving down until we hit something
+    while (true) {
+        // Create a temporary piece to test collision
+        const originalY = player.piece.position.y;
+        player.piece.position.y = ghostY + 1;
+        
+        if (checkCollision(player)) {
+            player.piece.position.y = originalY; // Restore original position
+            return ghostY;
+        }
+        
+        ghostY++;
+        player.piece.position.y = originalY; // Restore original position
+    }
+}
+
 function mergePiece(player) {
     player.piece.shape.forEach((row, y) => {
         row.forEach((value, x) => {
@@ -116,6 +177,38 @@ function mergePiece(player) {
             }
         });
     });
+}
+
+// Encouragement messages in Turkish
+const ENCOURAGEMENT_MESSAGES = [
+    "Harika! 🌟",
+    "Mükemmel! ✨", 
+    "Çok iyi! 🎉",
+    "Süper! 🚀",
+    "Bravo! 👏",
+    "Enfes! 🌈",
+    "Aferin! ⭐",
+    "Muhteşem! 🎊"
+];
+
+const MILESTONE_MESSAGES = {
+    100: "İlk 100 puan! 🎯",
+    500: "500 puan! Devam! 🔥",
+    1000: "1000 puan! İnanılmaz! 🏆",
+    2000: "2000 puan! Champion! 👑",
+    5000: "5000 puan! Efsane! ⚡"
+};
+
+function showEncouragementMessage(player, message) {
+    const playerId = player === players.p1 ? '1' : '2';
+    const messageElement = document.getElementById(`message${playerId}`);
+    messageElement.textContent = message;
+    messageElement.style.display = 'block';
+    
+    // Clear message after 3 seconds
+    setTimeout(() => {
+        messageElement.textContent = '';
+    }, 3000);
 }
 
 function clearLines(player) {
@@ -131,14 +224,55 @@ function clearLines(player) {
     }
 
     if (linesCleared > 0) {
+        playSound('lineClearSound');
+        const oldScore = player.score;
         player.score += linesCleared * 100 * player.level;
         document.getElementById(`score${player === players.p1 ? '1' : '2'}`).textContent = player.score;
+        
+        // Show encouragement message for line clear
+        const randomMessage = ENCOURAGEMENT_MESSAGES[Math.floor(Math.random() * ENCOURAGEMENT_MESSAGES.length)];
+        showEncouragementMessage(player, randomMessage);
+        
+        // Check for milestone achievements
+        for (const milestone in MILESTONE_MESSAGES) {
+            if (oldScore < milestone && player.score >= milestone) {
+                setTimeout(() => {
+                    showEncouragementMessage(player, MILESTONE_MESSAGES[milestone]);
+                }, 1500);
+                break;
+            }
+        }
         
         if (player.score >= player.level * 1000) {
             player.level++;
             document.getElementById(`level${player === players.p1 ? '1' : '2'}`).textContent = player.level;
             player.dropInterval = Math.max(100, 1000 - (player.level - 1) * 100);
         }
+    }
+}
+
+function drawMiniPiece(context, shape, color, canvasWidth, canvasHeight) {
+    context.fillStyle = '#1a252f';
+    context.fillRect(0, 0, canvasWidth, canvasHeight);
+    
+    if (shape) {
+        const blockSize = 15; // Smaller blocks for mini display
+        const offsetX = (canvasWidth - shape[0].length * blockSize) / 2;
+        const offsetY = (canvasHeight - shape.length * blockSize) / 2;
+        
+        shape.forEach((row, y) => {
+            row.forEach((value, x) => {
+                if (value !== 0) {
+                    context.fillStyle = color;
+                    context.fillRect(
+                        offsetX + x * blockSize,
+                        offsetY + y * blockSize,
+                        blockSize - 1,
+                        blockSize - 1
+                    );
+                }
+            });
+        });
     }
 }
 
@@ -173,6 +307,27 @@ function draw(player) {
 
     // Aktif parçayı çiz
     if (player.piece.shape) {
+        // Ghost piece'i çiz (yarı saydam)
+        const ghostY = calculateGhostPosition(player);
+        if (ghostY > player.piece.position.y) {
+            player.piece.shape.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value !== 0) {
+                        player.context.fillStyle = player.piece.color;
+                        player.context.globalAlpha = 0.3; // Yarı saydam
+                        player.context.fillRect(
+                            (player.piece.position.x + x) * BLOCK_SIZE,
+                            (ghostY + y) * BLOCK_SIZE,
+                            BLOCK_SIZE - 1,
+                            BLOCK_SIZE - 1
+                        );
+                        player.context.globalAlpha = 1.0; // Normal opaklık
+                    }
+                });
+            });
+        }
+        
+        // Normal parçayı çiz
         player.piece.shape.forEach((row, y) => {
             row.forEach((value, x) => {
                 if (value !== 0) {
@@ -208,10 +363,36 @@ function draw(player) {
     player.context.restore();
 }
 
+function holdPiece(player) {
+    if (!player.canHold) return;
+    
+    if (player.holdPiece.shape === null) {
+        // First time holding - store current piece and create new one
+        player.holdPiece.shape = player.piece.shape;
+        player.holdPiece.color = player.piece.color;
+        createPiece(player);
+    } else {
+        // Swap current piece with held piece
+        const tempShape = player.piece.shape;
+        const tempColor = player.piece.color;
+        
+        player.piece.shape = player.holdPiece.shape;
+        player.piece.color = player.holdPiece.color;
+        player.piece.position.x = Math.floor(BOARD_WIDTH / 2) - Math.floor(player.piece.shape[0].length / 2);
+        player.piece.position.y = 0;
+        
+        player.holdPiece.shape = tempShape;
+        player.holdPiece.color = tempColor;
+    }
+    
+    player.canHold = false; // Can only hold once per piece
+}
+
 function moveDown(player) {
     player.piece.position.y++;
     if (checkCollision(player)) {
         player.piece.position.y--;
+        playSound('landSound');
         mergePiece(player);
         clearLines(player);
         createPiece(player);
@@ -232,6 +413,19 @@ function moveRight(player) {
     }
 }
 
+// Sound effects
+function playSound(soundId) {
+    try {
+        const audio = document.getElementById(soundId);
+        if (audio) {
+            audio.currentTime = 0;
+            audio.play().catch(e => console.log('Audio play failed:', e));
+        }
+    } catch (e) {
+        console.log('Sound error:', e);
+    }
+}
+
 function rotate(player) {
     const originalShape = player.piece.shape;
     const rotated = player.piece.shape[0].map((_, i) =>
@@ -241,6 +435,8 @@ function rotate(player) {
 
     if (checkCollision(player)) {
         player.piece.shape = originalShape;
+    } else {
+        playSound('rotateSound');
     }
 }
 
@@ -249,12 +445,14 @@ function moveLeft1() { moveLeft(players.p1); }
 function moveRight1() { moveRight(players.p1); }
 function moveDown1() { moveDown(players.p1); }
 function rotate1() { rotate(players.p1); }
+function hold1() { holdPiece(players.p1); }
 
 // Oyuncu 2 kontrolleri
 function moveLeft2() { moveLeft(players.p2); }
 function moveRight2() { moveRight(players.p2); }
 function moveDown2() { moveDown(players.p2); }
 function rotate2() { rotate(players.p2); }
+function hold2() { holdPiece(players.p2); }
 
 function update(time = 0) {
     // Oyuncu 1 güncelleme
@@ -279,6 +477,13 @@ function update(time = 0) {
 
     draw(players.p1);
     draw(players.p2);
+    
+    // Draw hold and next pieces
+    const isPlayer1 = true;
+    drawMiniPiece(holdContext1, players.p1.holdPiece.shape, players.p1.holdPiece.color, 80, 80);
+    drawMiniPiece(nextContext1, players.p1.nextPiece.shape, players.p1.nextPiece.color, 80, 80);
+    drawMiniPiece(holdContext2, players.p2.holdPiece.shape, players.p2.holdPiece.color, 80, 80);
+    drawMiniPiece(nextContext2, players.p2.nextPiece.shape, players.p2.nextPiece.color, 80, 80);
 
     if (!players.p1.gameOver || !players.p2.gameOver) {
         requestAnimationFrame(update);
@@ -298,8 +503,12 @@ function restartGame() {
     players.p1.dropCounter = 0;
     players.p1.lastTime = 0;
     players.p1.dropInterval = 1000;
+    players.p1.holdPiece = { shape: null, color: null };
+    players.p1.nextPiece = { shape: null, color: null };
+    players.p1.canHold = true;
     document.getElementById('score1').textContent = '0';
     document.getElementById('level1').textContent = '1';
+    document.getElementById('message1').textContent = '';
 
     // Oyuncu 2'yi sıfırla
     players.p2.board = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
@@ -309,8 +518,12 @@ function restartGame() {
     players.p2.dropCounter = 0;
     players.p2.lastTime = 0;
     players.p2.dropInterval = 1000;
+    players.p2.holdPiece = { shape: null, color: null };
+    players.p2.nextPiece = { shape: null, color: null };
+    players.p2.canHold = true;
     document.getElementById('score2').textContent = '0';
     document.getElementById('level2').textContent = '1';
+    document.getElementById('message2').textContent = '';
 
     // Yeniden başlat butonunu gizle
     document.getElementById('restart').style.display = 'none';
@@ -322,7 +535,7 @@ function restartGame() {
 }
 
 document.addEventListener('keydown', event => {
-    // Oyuncu 1 kontrolleri (WASD)
+    // Oyuncu 1 kontrolleri (WASD + H for hold)
     if (!players.p1.gameOver) {
         switch (event.key.toLowerCase()) {
             case 'a':
@@ -337,10 +550,13 @@ document.addEventListener('keydown', event => {
             case 'w':
                 rotate(players.p1);
                 break;
+            case 'h':
+                holdPiece(players.p1);
+                break;
         }
     }
 
-    // Oyuncu 2 kontrolleri (Yön tuşları)
+    // Oyuncu 2 kontrolleri (Yön tuşları + Space for hold)
     if (!players.p2.gameOver) {
         switch (event.keyCode) {
             case 37: // Sol ok
@@ -354,6 +570,10 @@ document.addEventListener('keydown', event => {
                 break;
             case 38: // Yukarı ok
                 rotate(players.p2);
+                break;
+            case 32: // Space
+                event.preventDefault(); // Prevent page scroll
+                holdPiece(players.p2);
                 break;
         }
     }
