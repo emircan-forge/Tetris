@@ -146,6 +146,93 @@ body {
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
 }
 
+.game-layout {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.side-panels {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.hold-panel, .next-panel {
+    background-color: #2c3e50;
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.hold-panel h3, .next-panel h3 {
+    color: white;
+    font-size: 0.7em;
+    margin-bottom: 10px;
+    font-family: 'Press Start 2P', cursive;
+}
+
+.hold-panel canvas, .next-panel canvas {
+    border: 1px solid #555;
+    background-color: #000;
+}
+
+.hold-button {
+    background-color: #9b59b6;
+    margin-top: 10px;
+}
+
+.hold-button:hover {
+    background-color: #8e44ad;
+}
+
+.sound-controls {
+    background-color: #34495e;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+    margin-top: 20px;
+    text-align: center;
+}
+
+.sound-controls h3 {
+    color: white;
+    font-size: 1em;
+    margin-bottom: 15px;
+    font-family: 'Press Start 2P', cursive;
+}
+
+.volume-control {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 15px;
+    color: white;
+    font-size: 0.8em;
+}
+
+.volume-control input[type="range"] {
+    width: 150px;
+}
+
+#muteBtn {
+    background-color: #27ae60;
+    padding: 10px 20px;
+}
+
+#muteBtn:hover {
+    background-color: #2ecc71;
+}
+
+#muteBtn.muted {
+    background-color: #e74c3c;
+}
+
+#muteBtn.muted:hover {
+    background-color: #c0392b;
+}
+
 h2 {
     color: white;
     text-align: center;

@@ -8,6 +8,89 @@ const canvas2 = document.getElementById('tetris2');
 const context1 = canvas1.getContext('2d');
 const context2 = canvas2.getContext('2d');
 
+// Hold ve next piece canvas'ları
+const holdCanvas1 = document.getElementById('hold1');
+const holdCanvas2 = document.getElementById('hold2');
+const nextCanvas1 = document.getElementById('next1');
+const nextCanvas2 = document.getElementById('next2');
+const holdContext1 = holdCanvas1.getContext('2d');
+const holdContext2 = holdCanvas2.getContext('2d');
+const nextContext1 = nextCanvas1.getContext('2d');
+const nextContext2 = nextCanvas2.getContext('2d');
+
+// Ses sistemi
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+let isMuted = false;
+let volume = 0.5;
+
+// Ses oluşturma fonksiyonları
+function createBeep(frequency, duration, volume) {
+    if (isMuted) return;
+    
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = frequency;
+    oscillator.type = 'square';
+    
+    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(volume, audioContext.currentTime + 0.01);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + duration);
+}
+
+function playRotateSound() {
+    createBeep(800, 0.1, volume * 0.3);
+}
+
+function playMoveSound() {
+    createBeep(400, 0.05, volume * 0.2);
+}
+
+function playLandSound() {
+    createBeep(200, 0.15, volume * 0.4);
+}
+
+function playLineClearSound() {
+    createBeep(1200, 0.3, volume * 0.5);
+    setTimeout(() => createBeep(1000, 0.2, volume * 0.4), 100);
+    setTimeout(() => createBeep(800, 0.2, volume * 0.3), 200);
+}
+
+function playGameOverSound() {
+    createBeep(150, 0.5, volume * 0.6);
+    setTimeout(() => createBeep(100, 0.5, volume * 0.5), 200);
+    setTimeout(() => createBeep(75, 0.8, volume * 0.4), 400);
+}
+
+function playHoldSound() {
+    createBeep(600, 0.1, volume * 0.3);
+    setTimeout(() => createBeep(900, 0.1, volume * 0.3), 100);
+}
+
+// Ses kontrolleri
+function toggleMute() {
+    isMuted = !isMuted;
+    const muteBtn = document.getElementById('muteBtn');
+    muteBtn.textContent = isMuted ? 'Sessiz' : 'Sesli';
+    muteBtn.classList.toggle('muted', isMuted);
+}
+
+function updateVolume() {
+    const volumeSlider = document.getElementById('volume');
+    const volumeValue = document.getElementById('volumeValue');
+    volume = volumeSlider.value / 100;
+    volumeValue.textContent = volumeSlider.value + '%';
+}
+
+// Volume slider event listener
+document.getElementById('volume').addEventListener('input', updateVolume);
+
 function startGame() {
     // İsimleri al
     player1Name = document.getElementById('player1').value.trim() || 'Oyuncu 1';
@@ -59,7 +142,16 @@ const players = {
             position: {x: 0, y: 0},
             shape: null,
             color: null
-        }
+        },
+        nextPiece: {
+            shape: null,
+            color: null
+        },
+        heldPiece: {
+            shape: null,
+            color: null
+        },
+        canHold: true
     },
     p2: {
         board: Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0)),
@@ -74,19 +166,52 @@ const players = {
             position: {x: 0, y: 0},
             shape: null,
             color: null
-        }
+        },
+        nextPiece: {
+            shape: null,
+            color: null
+        },
+        heldPiece: {
+            shape: null,
+            color: null
+        },
+        canHold: true
     }
 };
 
-function createPiece(player) {
+function generateRandomPiece() {
     const pieceIndex = Math.floor(Math.random() * PIECES.length);
-    player.piece.shape = PIECES[pieceIndex];
-    player.piece.color = COLORS[pieceIndex];
+    return {
+        shape: PIECES[pieceIndex],
+        color: COLORS[pieceIndex]
+    };
+}
+
+function createPiece(player) {
+    // Eğer next piece yoksa, yeni bir tane oluştur
+    if (!player.nextPiece.shape) {
+        const piece = generateRandomPiece();
+        player.nextPiece.shape = piece.shape;
+        player.nextPiece.color = piece.color;
+    }
+
+    // Next piece'i current piece yap
+    player.piece.shape = player.nextPiece.shape;
+    player.piece.color = player.nextPiece.color;
     player.piece.position.x = Math.floor(BOARD_WIDTH / 2) - Math.floor(player.piece.shape[0].length / 2);
     player.piece.position.y = 0;
 
+    // Yeni bir next piece oluştur
+    const newPiece = generateRandomPiece();
+    player.nextPiece.shape = newPiece.shape;
+    player.nextPiece.color = newPiece.color;
+
+    // Hold özelliğini tekrar aktif et
+    player.canHold = true;
+
     if (checkCollision(player)) {
         player.gameOver = true;
+        playGameOverSound();
     }
 }
 
@@ -106,6 +231,30 @@ function checkCollision(player) {
         }
     }
     return false;
+}
+
+function calculateGhostPosition(player) {
+    if (!player.piece.shape) return null;
+    
+    let ghostY = player.piece.position.y;
+    const originalY = player.piece.position.y;
+    
+    // Move piece down until collision
+    while (true) {
+        player.piece.position.y = ghostY + 1;
+        if (checkCollision(player)) {
+            break;
+        }
+        ghostY++;
+    }
+    
+    // Restore original position
+    player.piece.position.y = originalY;
+    
+    return {
+        x: player.piece.position.x,
+        y: ghostY
+    };
 }
 
 function mergePiece(player) {
@@ -131,6 +280,7 @@ function clearLines(player) {
     }
 
     if (linesCleared > 0) {
+        playLineClearSound();
         player.score += linesCleared * 100 * player.level;
         document.getElementById(`score${player === players.p1 ? '1' : '2'}`).textContent = player.score;
         
@@ -140,6 +290,42 @@ function clearLines(player) {
             player.dropInterval = Math.max(100, 1000 - (player.level - 1) * 100);
         }
     }
+}
+
+function drawSmallPiece(context, shape, color, canvasWidth, canvasHeight) {
+    // Canvas'ı temizle
+    context.fillStyle = '#000';
+    context.fillRect(0, 0, canvasWidth, canvasHeight);
+    
+    if (!shape) return;
+    
+    const blockSize = 15;
+    const offsetX = (canvasWidth - shape[0].length * blockSize) / 2;
+    const offsetY = (canvasHeight - shape.length * blockSize) / 2;
+    
+    shape.forEach((row, y) => {
+        row.forEach((value, x) => {
+            if (value !== 0) {
+                context.fillStyle = color;
+                context.fillRect(
+                    offsetX + x * blockSize,
+                    offsetY + y * blockSize,
+                    blockSize - 1,
+                    blockSize - 1
+                );
+            }
+        });
+    });
+}
+
+function drawHoldAndNext() {
+    // Player 1 hold ve next
+    drawSmallPiece(holdContext1, players.p1.heldPiece.shape, players.p1.heldPiece.color, 80, 80);
+    drawSmallPiece(nextContext1, players.p1.nextPiece.shape, players.p1.nextPiece.color, 80, 80);
+    
+    // Player 2 hold ve next
+    drawSmallPiece(holdContext2, players.p2.heldPiece.shape, players.p2.heldPiece.color, 80, 80);
+    drawSmallPiece(nextContext2, players.p2.nextPiece.shape, players.p2.nextPiece.color, 80, 80);
 }
 
 function draw(player) {
@@ -170,6 +356,28 @@ function draw(player) {
             }
         });
     });
+
+    // Ghost piece'i çiz (yarı şeffaf)
+    if (player.piece.shape && !player.gameOver) {
+        const ghostPos = calculateGhostPosition(player);
+        if (ghostPos && ghostPos.y !== player.piece.position.y) {
+            player.context.globalAlpha = 0.3;
+            player.piece.shape.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value !== 0) {
+                        player.context.fillStyle = player.piece.color;
+                        player.context.fillRect(
+                            (ghostPos.x + x) * BLOCK_SIZE,
+                            (ghostPos.y + y) * BLOCK_SIZE,
+                            BLOCK_SIZE - 1,
+                            BLOCK_SIZE - 1
+                        );
+                    }
+                });
+            });
+            player.context.globalAlpha = 1.0;
+        }
+    }
 
     // Aktif parçayı çiz
     if (player.piece.shape) {
@@ -212,6 +420,7 @@ function moveDown(player) {
     player.piece.position.y++;
     if (checkCollision(player)) {
         player.piece.position.y--;
+        playLandSound();
         mergePiece(player);
         clearLines(player);
         createPiece(player);
@@ -222,6 +431,8 @@ function moveLeft(player) {
     player.piece.position.x--;
     if (checkCollision(player)) {
         player.piece.position.x++;
+    } else {
+        playMoveSound();
     }
 }
 
@@ -229,6 +440,8 @@ function moveRight(player) {
     player.piece.position.x++;
     if (checkCollision(player)) {
         player.piece.position.x--;
+    } else {
+        playMoveSound();
     }
 }
 
@@ -241,7 +454,45 @@ function rotate(player) {
 
     if (checkCollision(player)) {
         player.piece.shape = originalShape;
+    } else {
+        playRotateSound();
     }
+}
+
+function holdPiece(player) {
+    if (!player.canHold || !player.piece.shape) return;
+
+    playHoldSound();
+
+    if (!player.heldPiece.shape) {
+        // İlk kez hold yapılıyor
+        player.heldPiece.shape = player.piece.shape;
+        player.heldPiece.color = player.piece.color;
+        createPiece(player);
+    } else {
+        // Held piece ile current piece'i değiştir
+        const tempShape = player.piece.shape;
+        const tempColor = player.piece.color;
+        
+        player.piece.shape = player.heldPiece.shape;
+        player.piece.color = player.heldPiece.color;
+        player.piece.position.x = Math.floor(BOARD_WIDTH / 2) - Math.floor(player.piece.shape[0].length / 2);
+        player.piece.position.y = 0;
+        
+        player.heldPiece.shape = tempShape;
+        player.heldPiece.color = tempColor;
+        
+        if (checkCollision(player)) {
+            // Eğer collision varsa işlemi geri al
+            player.heldPiece.shape = player.piece.shape;
+            player.heldPiece.color = player.piece.color;
+            player.piece.shape = tempShape;
+            player.piece.color = tempColor;
+            return;
+        }
+    }
+    
+    player.canHold = false;
 }
 
 // Oyuncu 1 kontrolleri
@@ -249,12 +500,14 @@ function moveLeft1() { moveLeft(players.p1); }
 function moveRight1() { moveRight(players.p1); }
 function moveDown1() { moveDown(players.p1); }
 function rotate1() { rotate(players.p1); }
+function hold1() { holdPiece(players.p1); }
 
 // Oyuncu 2 kontrolleri
 function moveLeft2() { moveLeft(players.p2); }
 function moveRight2() { moveRight(players.p2); }
 function moveDown2() { moveDown(players.p2); }
 function rotate2() { rotate(players.p2); }
+function hold2() { holdPiece(players.p2); }
 
 function update(time = 0) {
     // Oyuncu 1 güncelleme
@@ -279,6 +532,7 @@ function update(time = 0) {
 
     draw(players.p1);
     draw(players.p2);
+    drawHoldAndNext();
 
     if (!players.p1.gameOver || !players.p2.gameOver) {
         requestAnimationFrame(update);
@@ -298,6 +552,9 @@ function restartGame() {
     players.p1.dropCounter = 0;
     players.p1.lastTime = 0;
     players.p1.dropInterval = 1000;
+    players.p1.nextPiece = { shape: null, color: null };
+    players.p1.heldPiece = { shape: null, color: null };
+    players.p1.canHold = true;
     document.getElementById('score1').textContent = '0';
     document.getElementById('level1').textContent = '1';
 
@@ -309,6 +566,9 @@ function restartGame() {
     players.p2.dropCounter = 0;
     players.p2.lastTime = 0;
     players.p2.dropInterval = 1000;
+    players.p2.nextPiece = { shape: null, color: null };
+    players.p2.heldPiece = { shape: null, color: null };
+    players.p2.canHold = true;
     document.getElementById('score2').textContent = '0';
     document.getElementById('level2').textContent = '1';
 
@@ -322,7 +582,7 @@ function restartGame() {
 }
 
 document.addEventListener('keydown', event => {
-    // Oyuncu 1 kontrolleri (WASD)
+    // Oyuncu 1 kontrolleri (WASD + Shift for hold)
     if (!players.p1.gameOver) {
         switch (event.key.toLowerCase()) {
             case 'a':
@@ -337,10 +597,13 @@ document.addEventListener('keydown', event => {
             case 'w':
                 rotate(players.p1);
                 break;
+            case 'q': // Q tuşu ile hold
+                holdPiece(players.p1);
+                break;
         }
     }
 
-    // Oyuncu 2 kontrolleri (Yön tuşları)
+    // Oyuncu 2 kontrolleri (Yön tuşları + Space for hold)
     if (!players.p2.gameOver) {
         switch (event.keyCode) {
             case 37: // Sol ok
@@ -354,6 +617,10 @@ document.addEventListener('keydown', event => {
                 break;
             case 38: // Yukarı ok
                 rotate(players.p2);
+                break;
+            case 32: // Space tuşu ile hold
+                event.preventDefault();
+                holdPiece(players.p2);
                 break;
         }
     }
